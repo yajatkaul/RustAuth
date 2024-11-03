@@ -1,6 +1,9 @@
+#![deny(elided_lifetimes_in_paths)]
+
 use axum::{
     extract::State, http::{header, HeaderMap, HeaderValue, StatusCode}, response::IntoResponse, routing::{get, post}, Json, Router
 };
+use tower_cookies::{Cookie, CookieManagerLayer, Cookies};
 
 use chrono::{DateTime, Duration, Utc};
 use mongodb::{bson::{doc, oid::ObjectId}, Collection, Database};
@@ -33,7 +36,9 @@ async fn main() {
     //Server Setup
     let app = Router::new().route("/login", post(login))
                                    .route("/logout", get(logout))
-                                   .route("/signup", post(signup)).with_state(state);
+                                   .route("/signup", post(signup))
+                                   .with_state(state)
+                                   .layer(CookieManagerLayer::new());
 
     const PORT:u16 = 3000;
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{:?}",PORT)).await.unwrap();
@@ -77,10 +82,12 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginPayload>)
 
                 let id = Uuid::new_v4();
 
+                let exp = Utc::now() + Duration::days(7);
+
                 let session = Sessions {
                     session_id: id.to_string(),
                     user_id: user.id.to_string(),
-                    valid_till: Utc::now() + Duration::days(7),
+                    valid_till: exp,
                 };
 
                 let _ = sessions_coll.insert_one(&session).await;
@@ -88,7 +95,7 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginPayload>)
 
                 headers.insert(
                     header::SET_COOKIE,
-                    HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly", id)).unwrap(),
+                    HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
                 );
 
                 (StatusCode::OK,headers, "Logged in successfully").into_response()
@@ -144,15 +151,17 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
                     let _ = my_coll.insert_one(&user).await;
                 }
                 Err(_e) => {
-                    return (StatusCode::BAD_REQUEST, "Error hashing password").into_response();
+                    (StatusCode::BAD_REQUEST, "Error hashing password").into_response();
                 },
             };
             
             let session_id  = Uuid::new_v4();
+
+            let exp = Utc::now() + Duration::days(7);
             let session = Sessions{
                 session_id: session_id.to_string(),
                 user_id: id.to_string(),
-                valid_till: Utc::now() + Duration::days(7),
+                valid_till: exp,
             };
 
             let _ = sessions_coll.insert_one(session);
@@ -161,7 +170,7 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
 
             headers.insert(
                 header::SET_COOKIE,
-                HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly", session_id)).unwrap(),
+                HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
             );
 
             (StatusCode::OK,headers, "Account created sucessfully").into_response()
@@ -173,6 +182,13 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
     }
 }
 
-async fn logout(State(state): State<AppState>) -> impl IntoResponse {
-
+async fn logout(State(state): State<AppState>, cookies: Cookies) -> impl IntoResponse {
+    match cookies.get("session") {
+        Some(cookie) => {
+            println!("Found session: {}", cookie.value());
+            cookies.remove(cookie);
+            (StatusCode::OK, "Logged out successfully").into_response()
+        }
+        None => (StatusCode::BAD_REQUEST, "No session found").into_response()
+    }
 }
