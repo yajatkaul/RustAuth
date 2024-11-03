@@ -188,7 +188,7 @@ async fn logout(State(state): State<AppState>, cookies: Cookies) -> impl IntoRes
             let sessions_coll:Collection<Sessions> = state.db.collection("sessions");
             println!("{:?}", cookie.value());
             let _ = sessions_coll.delete_one(doc! {"session_id": cookie.value()}).await;
-            //cookies.remove(Cookie::new("session_id", ""));
+            cookies.remove(Cookie::new("session_id", ""));
             (StatusCode::OK, "Logged out successfully")
         }
         None => (StatusCode::BAD_REQUEST, "No session found")
