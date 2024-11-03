@@ -4,6 +4,7 @@ use axum::{
 
 use mongodb::{bson::doc, Collection, Database};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 mod database;
 
@@ -16,7 +17,7 @@ struct AppState {
 async fn main() {
 
     //DB connection
-    let db = database::connect("mongodb://localhost:27017/", "Tourney")
+    let db = database::connect("mongodb://localhost:27017/", "rustier")
     .await
     .expect("Failed to connect to the database");
     
@@ -65,15 +66,12 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginPayload>)
 
 #[derive(Deserialize, Debug, Serialize)]
 struct SignupPayload {
-    #[serde(rename(serialize = "user_name", deserialize = "user_name"))]
     user_name: String,
-    #[serde(rename(serialize = "display_name", deserialize = "display_name"))]
     display_name: String,
-    #[serde(rename(serialize = "email", deserialize = "email"))]
     email: String,
-    #[serde(rename(serialize = "password", deserialize = "password"))]
     password: String,
 }
+
 
 async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload>) -> impl IntoResponse {
     println!("Received Signup payload: {:?}", payload);
@@ -82,17 +80,10 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
 
     match my_coll.find_one(doc! { "email": &payload.email }).await {
         Ok(Some(_user)) => {
-            (StatusCode::BAD_REQUEST, "Email already used").into_response()
+            (StatusCode::BAD_REQUEST, Json(json!({"result": "Email already used"}))).into_response()
         },
         Ok(None) => {
-            let user = SignupPayload {
-                user_name: payload.user_name,
-                display_name: payload.display_name,
-                email: payload.email,
-                password: payload.password,
-            };
-
-            let _ = my_coll.insert_one(&user).await;
+            let _ = my_coll.insert_one(&payload).await;
 
             (StatusCode::OK, "Account created sucessfully").into_response()
         },
