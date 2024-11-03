@@ -95,7 +95,7 @@ async fn login(State(state): State<AppState>, Json(payload): Json<LoginPayload>)
 
                 headers.insert(
                     header::SET_COOKIE,
-                    HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
+                    HeaderValue::from_str(&format!("session_id={}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
                 );
 
                 (StatusCode::OK,headers, "Logged in successfully").into_response()
@@ -151,7 +151,7 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
                     let _ = my_coll.insert_one(&user).await;
                 }
                 Err(_e) => {
-                    (StatusCode::BAD_REQUEST, "Error hashing password").into_response();
+                    return (StatusCode::BAD_REQUEST, "Error hashing password").into_response();
                 },
             };
             
@@ -170,7 +170,7 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
 
             headers.insert(
                 header::SET_COOKIE,
-                HeaderValue::from_str(&format!("session_id={:?}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
+                HeaderValue::from_str(&format!("session_id={}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
             );
 
             (StatusCode::OK,headers, "Account created sucessfully").into_response()
@@ -183,12 +183,14 @@ async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload
 }
 
 async fn logout(State(state): State<AppState>, cookies: Cookies) -> impl IntoResponse {
-    match cookies.get("session") {
+    match cookies.get("session_id") {
         Some(cookie) => {
-            println!("Found session: {}", cookie.value());
-            cookies.remove(cookie);
-            (StatusCode::OK, "Logged out successfully").into_response()
+            let sessions_coll:Collection<Sessions> = state.db.collection("sessions");
+            println!("{:?}", cookie.value());
+            let _ = sessions_coll.delete_one(doc! {"session_id": cookie.value()}).await;
+            //cookies.remove(Cookie::new("session_id", ""));
+            (StatusCode::OK, "Logged out successfully")
         }
-        None => (StatusCode::BAD_REQUEST, "No session found").into_response()
-    }
+        None => (StatusCode::BAD_REQUEST, "No session found")
+    }.into_response()
 }
