@@ -107,7 +107,7 @@ pub async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPay
 
             headers.insert(
                 header::SET_COOKIE,
-                HeaderValue::from_str(&format!("session_id={}; Path=/; HttpOnly; Expires={};", id, exp.to_rfc2822())).unwrap(),
+                HeaderValue::from_str(&format!("session_id={}; Path=/; HttpOnly; Expires={};", session_id, exp.to_rfc2822())).unwrap(),
             );
 
             (StatusCode::OK,headers, "Account created sucessfully").into_response()
