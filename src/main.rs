@@ -15,7 +15,6 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
-
     //DB connection
     let db = database::mongo::connect("mongodb://localhost:27017/", "rustier")
     .await
