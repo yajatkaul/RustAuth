@@ -3,40 +3,16 @@ use axum::{
 };
 use tower_cookies::{Cookie, Cookies};
 
-use chrono::{DateTime, Duration, Utc};
+use chrono::{Duration, Utc};
 use mongodb::{bson::{doc, oid::ObjectId}, Collection};
 use rand::{rngs::OsRng, RngCore};
-use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use bcrypt::{hash_with_salt, verify};
 
 use uuid::Uuid;
 
-use crate::AppState;
-
-
-#[derive(Deserialize, Debug, Serialize)]
-pub struct LoginPayload {
-    email: String,
-    password: String,
-}
-
-#[derive(Deserialize, Debug, Serialize)]
-pub struct Sessions {
-    session_id: String,
-    user_id: String,
-    valid_till: DateTime<Utc>,
-}
-
-#[derive(Deserialize, Debug, Serialize)]
-pub struct UserSchema {
-    #[serde(rename = "_id")]
-    id: ObjectId,
-    email: String,
-    user_name: String,
-    password: String,
-}
+use crate::{models::{auth_schema::{Sessions, UserSchema}, route_schema::{LoginPayload, SignupPayload}}, AppState};
 
 pub async fn login(State(state): State<AppState>, Json(payload): Json<LoginPayload>) -> impl IntoResponse {
     println!("Received Login payload: {:?}", payload);
@@ -82,14 +58,6 @@ pub async fn login(State(state): State<AppState>, Json(payload): Json<LoginPaylo
     }
 
 }
-
-#[derive(Deserialize, Debug, Serialize)]
-pub struct SignupPayload {
-    user_name: String,
-    email: String,
-    password: String,
-}
-
 
 pub async fn signup(State(state): State<AppState>, Json(payload): Json<SignupPayload>) -> impl IntoResponse {
     println!("Received Signup payload: {:?}", payload);

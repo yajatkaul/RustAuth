@@ -3,8 +3,9 @@ use mongodb::Database;
 use tower_cookies::CookieManagerLayer;
 
 mod database;
-
+mod models;
 mod routes;
+
 use crate::routes::auth_routes::{login, logout, signup};
 
 #[derive(Clone)]
@@ -16,7 +17,7 @@ struct AppState {
 async fn main() {
 
     //DB connection
-    let db = database::connect("mongodb://localhost:27017/", "rustier")
+    let db = database::mongo::connect("mongodb://localhost:27017/", "rustier")
     .await
     .expect("Failed to connect to the database");
     
