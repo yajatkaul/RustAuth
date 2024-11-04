@@ -7,7 +7,7 @@ use crate::{models::auth_schema::Sessions, AppState};
 pub async fn auth_middleware(
     State(state): State<AppState>,
     cookies: Cookies,
-    req: Request<Body>,
+    mut req: Request<Body>,
     next: Next,
 ) -> Result<Response<Body>, (StatusCode, String)> {
 
@@ -16,12 +16,11 @@ pub async fn auth_middleware(
         None => return Err((StatusCode::UNAUTHORIZED, "Missing session_id cookie".to_string())),
     };
 
-    println!("Session ID: {}", session_id_value);
-
     let session_coll: Collection<Sessions> = state.db.collection("sessions");
 
-    match session_coll.find_one(doc! {"session_id": session_id_value}).await {
+    match session_coll.find_one(doc! {"session_id": &session_id_value}).await {
         Ok(Some(_session)) => {
+            req.extensions_mut().insert(session_id_value.clone());
             Ok(next.run(req).await)
         }
         Ok(None) => {

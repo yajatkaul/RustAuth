@@ -1,4 +1,4 @@
-use axum::{extract::{Multipart, State}, response::IntoResponse};
+use axum::{extract::{Multipart, State}, response::IntoResponse, Extension};
 use std::{fs::File, io::Write, path::Path};
 
 use crate::AppState;
@@ -7,10 +7,15 @@ const MAX_FILE_SIZE: u64 = 5 * 1024 * 1024;
 
 const ALLOWED_EXTENSIONS: [&str; 3] = ["pdf", "docx", "txt"];
 
+#[axum::debug_handler]
 pub async fn upload_file_handler(
     State(_state): State<AppState>,
+    //How to use middleware value make sure to use before multipart in this case
+    Extension(session_id): Extension<String>,
     mut multipart: Multipart,
 ) -> impl IntoResponse {
+    println!("Session ID: {}", session_id);
+
     while let Some(mut field) = multipart.next_field().await.unwrap() {
         let file_name = field.file_name().unwrap_or("file").to_string();
 
